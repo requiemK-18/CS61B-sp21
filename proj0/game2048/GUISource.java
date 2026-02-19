@@ -35,19 +35,19 @@ class GUISource implements InputSource {
     public String getKey() {
         String command = _source.readKey();
         switch (command) {
-            case "↑" :
+            case "\u2191":
                 command = "Up";
                 break;
-            case "→" :
+            case "\u2192":
                 command = "Right";
                 break;
-            case "↓" :
+            case "\u2193":
                 command = "Down";
                 break;
-            case "←" :
+            case "\u2190":
                 command = "Left";
                 break;
-            default :
+            default:
                 break;
         }
 
@@ -88,3 +88,6 @@ class GUISource implements InputSource {
     private FileWriter _logFileWriter;
 
 }
+
+
+
