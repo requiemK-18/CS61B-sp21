@@ -1,5 +1,6 @@
 package game2048;
 
+import java.util.Arrays;
 import java.util.Formatter;
 import java.util.Observable;
 
@@ -107,18 +108,79 @@ public class Model extends Observable {
      *    and the trailing tile does not.
      * */
     public boolean tilt(Side side) {
-        boolean changed;
-        changed = false;
+        boolean changed = false;
+        board.setViewingPerspective(side);
+        //1.遍历非空块
+        //2.3个状态：前面有无，是否紧邻前面的，是否可合并（相同值+无标记）1个值：前面在哪
+        //3.前面没有:视作路线2 移动changed
+        //  前面有，可合并：路线1 移动加分标记changed
+        //  前面有，不可合并，不近邻：路线2
+        //  剩下的不管了
+        boolean frontExist, isAdjacent, isMergeable;
+        int row_front, size = board.size();
+        boolean[] dict = new boolean[size];
+        for (int col = 0; col < size; col += 1) {
+            Arrays.fill(dict, false);
+            for (int row = size - 2; row >= 0; row -= 1) {
+                if (board.tile(col, row) != null) {
+                    frontExist = frontExist(board, col, row);
+                    isAdjacent = isAdjacent(board, col, row);
+                    isMergeable = isMergeable(board, col, row, dict);
+                    row_front = row_front(board, col, row);
+                    if (!frontExist || (!isMergeable && !isAdjacent)) {
+                        board.move(col, row_front - 1, board.tile(col, row));
+                        changed = true;
+                    } else if (isMergeable) {
+                        board.move(col, row_front, board.tile(col, row));
+                        this.score += board.tile(col, row_front).value();
+                        tag(row_front, dict);
+                        changed = true;
+                    }
+                }
+            }
+        }
 
-        // TODO: Modify this.board (and perhaps this.score) to account
-        // for the tilt to the Side SIDE. If the board changed, set the
-        // changed local variable to true.
+        board.setViewingPerspective(Side.NORTH);
 
         checkGameOver();
         if (changed) {
             setChanged();
         }
         return changed;
+    }
+
+    public static boolean frontExist(Board b, int col, int row) {
+        for (int i = row + 1; i < b.size(); i += 1) {
+            if (b.tile(col, i) != null) {
+                return true;
+            }
+        }
+        return false;
+    }
+    public static int row_front(Board b, int col, int row) {
+        int size = b.size();
+        for (int i = row + 1; i < size; i += 1) {
+            if (b.tile(col, i) != null) return i;
+        }
+        return size;
+    }
+    public static boolean isAdjacent(Board b, int col, int row) {
+        return frontExist(b, col, row) && row_front(b, col, row) - 1 == row;
+    }
+
+    public static boolean isMergeable(Board b, int col, int row, boolean[] dict) {
+        return frontExist(b, col, row) &&
+                b.tile(col, row).value() == b.tile(col, row_front(b, col, row)).value() &&
+                !noteTagged(row_front(b, col, row), dict);
+    }
+
+
+    public static void tag(int row, boolean[] dict) {
+        dict[row] = true;
+    }
+
+    public static boolean noteTagged(int row, boolean[] dict) {
+        return dict[row];
     }
 
     /** Checks if the game is over and sets the gameOver variable
@@ -137,7 +199,13 @@ public class Model extends Observable {
      *  Empty spaces are stored as null.
      * */
     public static boolean emptySpaceExists(Board b) {
-        // TODO: Fill in this function.
+        for (int row = 0; row < b.size(); row += 1) {
+            for (int col = 0; col < b.size(); col += 1) {
+                if (b.tile(row, col) == null) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -147,7 +215,13 @@ public class Model extends Observable {
      * given a Tile object t, we get its value with t.value().
      */
     public static boolean maxTileExists(Board b) {
-        // TODO: Fill in this function.
+        for (int row = 0; row < b.size(); row += 1) {
+            for (int col = 0; col < b.size(); col += 1) {
+                if (b.tile(row, col) != null && b.tile(row, col).value() == MAX_PIECE) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -158,8 +232,33 @@ public class Model extends Observable {
      * 2. There are two adjacent tiles with the same value.
      */
     public static boolean atLeastOneMoveExists(Board b) {
-        // TODO: Fill in this function.
+        return emptySpaceExists(b) || sameNeighborExists(b);
+    }
+
+    public static boolean sameNeighborExists(Board b) {
+        int[] shift = new int[]{1, -1, 0, 0, 0, 0, 1, -1};
+        for (int row = 0; row < b.size(); row += 1) {
+            for (int col = 0; col < b.size(); col += 1) {
+                if (b.tile(row, col) != null) {
+                    for (int i = 0; i < 4; i += 1) {
+                        int row_new = row + shift[i];
+                        int col_new = col + shift[i + 4];
+                        if (isinRange(b, row_new, col_new)) {
+                            if (b.tile(row_new, col_new) != null &&
+                                b.tile(row_new, col_new).value() ==
+                                b.tile(row, col).value()) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
         return false;
+    }
+
+    public static boolean isinRange(Board b, int row, int col) {
+        return row >= 0 && row < b.size() && col >= 0 && col < b.size();
     }
 
 
